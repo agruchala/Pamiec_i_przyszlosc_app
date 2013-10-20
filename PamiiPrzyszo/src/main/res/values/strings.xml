@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Pamięć i Przyszłość</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_map">Mapa</string>
+    <string name="action_gallery">Galeria</string>
+    <string name="action_about">Info</string>
+    <string name="get_location">Get Location</string>
+    <string name="disconnect">Disconnect Service</string>
+    <string name="connect">Connect Service</string>
+
+</resources>
