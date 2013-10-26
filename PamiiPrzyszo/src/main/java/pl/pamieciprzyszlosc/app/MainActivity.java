@@ -14,6 +14,9 @@ import java.util.Locale;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesClient;
 import com.google.android.gms.location.LocationClient;
+import android.location.LocationManager;
+import android.location.LocationListener;
+import android.content.Context;
 
 import android.location.Address;
 import android.location.Geocoder;
@@ -29,12 +32,14 @@ public class MainActivity extends Activity implements
         GooglePlayServicesClient.ConnectionCallbacks,
         GooglePlayServicesClient.OnConnectionFailedListener {
 
-    LocationClient mLocationClient;
+    private LocationClient mLocationClient;
     private TextView addressLabel;
     private TextView locationLabel;
     private Button getLocationBtn;
     private Button disconnectBtn;
     private Button connectBtn;
+    private LocationManager mLocationManager;
+    private LocationListener mMyLocationListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +69,10 @@ public class MainActivity extends Activity implements
             }
         });
         // Create the LocationRequest object
+        mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        mMyLocationListener = new MyLocationListener();
+        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER,200, (float) 0.3,mMyLocationListener);
+
         mLocationClient = new LocationClient(this, this, this);
     }
 
@@ -217,6 +226,35 @@ public class MainActivity extends Activity implements
             }
         }
     }// AsyncTask class
+
+
+    public class MyLocationListener implements LocationListener{
+
+        @Override
+        public void onLocationChanged(Location location) {
+
+            String toastText = "Current location updated!\n"
+                    + "Latitude: "+ location.getLatitude() +"\n"
+                    + "Longitude: "+ location.getLongitude();
+            Toast.makeText(getApplicationContext(),toastText,Toast.LENGTH_SHORT).show();
+
+        }
+
+        @Override
+        public void onStatusChanged(String s, int i, Bundle bundle) {
+            //dummy function unused so far
+        }
+
+        @Override
+        public void onProviderEnabled(String s) {
+                Toast.makeText(getApplicationContext(),"Provider enabled", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        public void onProviderDisabled(String s) {
+            Toast.makeText(getApplicationContext(),"Provider disabled", Toast.LENGTH_SHORT).show();
+        }
+    }
 
 
 }
