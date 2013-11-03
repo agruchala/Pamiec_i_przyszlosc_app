@@ -2,6 +2,7 @@ package pl.pamieciprzyszlosc.app;
 
 import android.os.Bundle;
 import android.app.Activity;
+import android.support.v4.app.FragmentActivity;
 import android.view.Menu;
 import android.app.ActionBar;
 import android.view.MenuItem;
@@ -17,6 +18,10 @@ import com.google.android.gms.location.LocationClient;
 import android.location.LocationManager;
 import android.location.LocationListener;
 import android.content.Context;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 import android.location.Address;
 import android.location.Geocoder;
@@ -27,11 +32,14 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.app.Fragment;
 
-public class MainActivity extends Activity implements
+public class MainActivity extends FragmentActivity implements
         GooglePlayServicesClient.ConnectionCallbacks,
         GooglePlayServicesClient.OnConnectionFailedListener {
 
+
+    private GoogleMap mMap;
     private LocationClient mLocationClient;
     private TextView addressLabel;
     private TextView locationLabel;
@@ -74,6 +82,31 @@ public class MainActivity extends Activity implements
         mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER,200, (float) 0.3,mMyLocationListener);
 
         mLocationClient = new LocationClient(this, this, this);
+        setUpMapIfNeeded();
+    }
+
+
+
+    private void setUpMapIfNeeded() {
+        // Do a null check to confirm that we have not already instantiated the map.
+        if (mMap == null) {
+            // Try to obtain the map from the SupportMapFragment.
+            mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
+                    .getMap();
+            // Check if we were successful in obtaining the map.
+            if (mMap != null) {
+                setUpMap();
+            }
+        }
+    }
+
+    private void setUpMap() {
+        mMap.clear();
+        if (mLocationClient.isConnected()){
+            Location location = mLocationClient.getLastLocation();
+            LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
+            mMap.addMarker(new MarkerOptions().position(latLng).title("Lokalizacja"));
+        }
     }
 
 
@@ -146,6 +179,7 @@ public class MainActivity extends Activity implements
     public void displayCurrentLocation() {
         // Get the current location's latitude & longitude
         Location currentLocation = mLocationClient.getLastLocation();
+        setUpMap();
         String msg = "Current Location: " +
                 Double.toString(currentLocation.getLatitude()) + "," +
                 Double.toString(currentLocation.getLongitude());
