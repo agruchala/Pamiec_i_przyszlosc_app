@@ -79,7 +79,7 @@ public class MainActivity extends FragmentActivity implements
         // Create the LocationRequest object
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mMyLocationListener = new MyLocationListener();
-        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER,200, (float) 0.3,mMyLocationListener);
+        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER,500, (float) 150,mMyLocationListener);
 
         mLocationClient = new LocationClient(this, this, this);
         setUpMapIfNeeded();
