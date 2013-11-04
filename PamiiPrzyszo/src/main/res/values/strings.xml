@@ -10,5 +10,6 @@
     <string name="get_location">Get Location</string>
     <string name="disconnect">Disconnect Service</string>
     <string name="connect">Connect Service</string>
+    <string name="title_activity_gallery">Galeria</string>
 
 </resources>

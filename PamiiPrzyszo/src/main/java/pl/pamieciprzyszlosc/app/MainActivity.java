@@ -1,5 +1,6 @@
 package pl.pamieciprzyszlosc.app;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
@@ -130,7 +131,8 @@ public class MainActivity extends FragmentActivity implements
                 text = "Mapa!";
                 break;
             case R.id.action_gallery:
-                text = "Galeria!";
+                Intent intent =  new Intent(MainActivity.this,GalleryActivity.class);
+                this.startActivity(intent);
                 break;
             case R.id.action_about:
                 text = "Info!";
