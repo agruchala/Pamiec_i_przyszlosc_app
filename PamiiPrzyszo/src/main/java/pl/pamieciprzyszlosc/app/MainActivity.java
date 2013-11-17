@@ -1,6 +1,7 @@
 package pl.pamieciprzyszlosc.app;
 
 import android.content.Intent;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
@@ -9,6 +10,7 @@ import android.app.ActionBar;
 import android.view.MenuItem;
 import android.widget.Toast;
 import android.content.Context;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
@@ -16,9 +18,11 @@ import java.util.Locale;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesClient;
 import com.google.android.gms.location.LocationClient;
+
 import android.location.LocationManager;
 import android.location.LocationListener;
 import android.content.Context;
+
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
@@ -49,6 +53,7 @@ public class MainActivity extends FragmentActivity implements
     private Button connectBtn;
     private LocationManager mLocationManager;
     private LocationListener mMyLocationListener;
+    Resources res;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,13 +85,23 @@ public class MainActivity extends FragmentActivity implements
         // Create the LocationRequest object
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mMyLocationListener = new MyLocationListener();
-        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER,500, (float) 150,mMyLocationListener);
+        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER, 500, (float) 150, mMyLocationListener);
+        res = getResources();
 
         mLocationClient = new LocationClient(this, this, this);
         setUpMapIfNeeded();
     }
 
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == res.getInteger(R.integer.gallery_request_code)) {
+            if (resultCode == Activity.RESULT_OK)
+                Toast.makeText(getApplicationContext(), data.getStringExtra(res.getString(R.string.extras_latitude)), Toast.LENGTH_SHORT).show();
+        }
+
+    }
 
     private void setUpMapIfNeeded() {
         // Do a null check to confirm that we have not already instantiated the map.
@@ -103,7 +118,7 @@ public class MainActivity extends FragmentActivity implements
 
     private void setUpMap() {
         mMap.clear();
-        if (mLocationClient.isConnected()){
+        if (mLocationClient.isConnected()) {
             Location location = mLocationClient.getLastLocation();
             LatLng latLng = new LatLng(location.getLatitude(), location.getLongitude());
             mMap.addMarker(new MarkerOptions().position(latLng).title("Lokalizacja"));
@@ -123,22 +138,21 @@ public class MainActivity extends FragmentActivity implements
 
         Context context = getApplicationContext();
         int duration = Toast.LENGTH_SHORT;
-        CharSequence text="";
+        CharSequence text = "";
 
 
-        switch(item.getItemId()){
+        switch (item.getItemId()) {
             case R.id.action_map:
                 text = "Mapa!";
                 break;
             case R.id.action_gallery:
-                Intent intent =  new Intent(MainActivity.this,GalleryActivity.class);
-                this.startActivity(intent);
+                Intent intent = new Intent(MainActivity.this, GalleryActivity.class);
+                this.startActivityForResult(intent, res.getInteger(R.integer.gallery_request_code));
                 break;
             case R.id.action_about:
                 text = "Info!";
                 break;
         }
-
 
 
         Toast toast = Toast.makeText(context, text, duration);
@@ -153,6 +167,7 @@ public class MainActivity extends FragmentActivity implements
         mLocationClient.connect();
         locationLabel.setText("Got connected....");
     }
+
     @Override
     protected void onStop() {
         // Disconnect the client.
@@ -160,17 +175,20 @@ public class MainActivity extends FragmentActivity implements
         super.onStop();
         locationLabel.setText("Got disconnected....");
     }
+
     @Override
     public void onConnected(Bundle dataBundle) {
         // Display the connection status
         Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
     }
+
     @Override
     public void onDisconnected() {
         // Display the connection status
         Toast.makeText(this, "Disconnected. Please re-connect.",
                 Toast.LENGTH_SHORT).show();
     }
+
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
         // Display the error code on failure
@@ -178,6 +196,7 @@ public class MainActivity extends FragmentActivity implements
                 connectionResult.getErrorCode(),
                 Toast.LENGTH_SHORT).show();
     }
+
     public void displayCurrentLocation() {
         // Get the current location's latitude & longitude
         Location currentLocation = mLocationClient.getLastLocation();
@@ -192,12 +211,14 @@ public class MainActivity extends FragmentActivity implements
         // To display the current address in the UI
         (new GetAddressTask(this.getApplicationContext())).execute(currentLocation);
     }
+
     /*
      * Following is a subclass of AsyncTask which has been used to get
      * address corresponding to the given latitude & longitude.
      */
-    private class GetAddressTask extends AsyncTask<Location, Void, String>{
+    private class GetAddressTask extends AsyncTask<Location, Void, String> {
         Context mContext;
+
         public GetAddressTask(Context context) {
             super();
             mContext = context;
@@ -211,6 +232,7 @@ public class MainActivity extends FragmentActivity implements
             // Display the current address in the UI
             addressLabel.setText(address);
         }
+
         @Override
         protected String doInBackground(Location... params) {
             Geocoder geocoder =
@@ -225,7 +247,7 @@ public class MainActivity extends FragmentActivity implements
             } catch (IOException e1) {
                 Log.e("LocationSampleActivity",
                         "IO Exception in getFromLocation()");
-                Log.e("LocationSampleActivity",e1.toString());
+                Log.e("LocationSampleActivity", e1.toString());
                 return ("IO Exception trying to get address");
             } catch (IllegalArgumentException e2) {
                 // Error message to post in the log
@@ -264,15 +286,15 @@ public class MainActivity extends FragmentActivity implements
     }// AsyncTask class
 
 
-    public class MyLocationListener implements LocationListener{
+    public class MyLocationListener implements LocationListener {
 
         @Override
         public void onLocationChanged(Location location) {
 
             String toastText = "Current location updated!\n"
-                    + "Latitude: "+ location.getLatitude() +"\n"
-                    + "Longitude: "+ location.getLongitude();
-            Toast.makeText(getApplicationContext(),toastText,Toast.LENGTH_SHORT).show();
+                    + "Latitude: " + location.getLatitude() + "\n"
+                    + "Longitude: " + location.getLongitude();
+            Toast.makeText(getApplicationContext(), toastText, Toast.LENGTH_SHORT).show();
 
         }
 
@@ -283,12 +305,12 @@ public class MainActivity extends FragmentActivity implements
 
         @Override
         public void onProviderEnabled(String s) {
-                Toast.makeText(getApplicationContext(),"Provider enabled", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Provider enabled", Toast.LENGTH_SHORT).show();
         }
 
         @Override
         public void onProviderDisabled(String s) {
-            Toast.makeText(getApplicationContext(),"Provider disabled", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Provider disabled", Toast.LENGTH_SHORT).show();
         }
     }
 

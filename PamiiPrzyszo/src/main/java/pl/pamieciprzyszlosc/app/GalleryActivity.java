@@ -1,5 +1,7 @@
 package pl.pamieciprzyszlosc.app;
 
+import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -35,6 +37,7 @@ import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Vector;
+
 import com.google.common.io.ByteStreams;
 
 
@@ -47,15 +50,14 @@ public class GalleryActivity extends Activity {
     private ImageView diplayImage;
     private LinearLayout myGallery;
     private TextView textView;
+    Resources res;
 
 
+    // class that connect to ftp in background
+    private class FTPBackgroundTask extends AsyncTask<Void, Void, Bitmap[]> {
 
 
-// class that connect to ftp in background
-    private class FTPBackgroundTask extends AsyncTask<Void,Void,Bitmap[]> {
-
-
-    @Override
+        @Override
         protected Bitmap[] doInBackground(Void... voids) {
             ArrayList<Bitmap> bitmapVector = new ArrayList<Bitmap>();
             //android.os.Debug.waitForDebugger();
@@ -65,65 +67,67 @@ public class GalleryActivity extends Activity {
                 ftpClient = new FTPClient();
                 ftpClient.connect("ftp.strefa.pl");
 
-                ftpClient.login("admin+ftpforproject.strefa.pl","studia12");
+                ftpClient.login("admin+ftpforproject.strefa.pl", "studia12");
 
                 ftpClient.enterLocalPassiveMode();
                 FTPFile[] fileList = ftpClient.listFiles();
 
-                for(FTPFile file : fileList){
-                    String fileName =file.getName();
+                for (FTPFile file : fileList) {
+                    String fileName = file.getName();
                     if (!fileName.endsWith("jpg"))
                         continue;
-                    FileOutputStream fileOutput = openFileOutput(fileName,MODE_PRIVATE);
+                    FileOutputStream fileOutput = openFileOutput(fileName, MODE_PRIVATE);
                     InputStream inputStream = ftpClient.retrieveFileStream(fileName);
                     byte[] bytesArray = new byte[4096];
                     int bytesRead = -1;
-                    while ((bytesRead = inputStream.read(bytesArray)) != -1){
-                        fileOutput.write(bytesArray,0,bytesRead);
+                    while ((bytesRead = inputStream.read(bytesArray)) != -1) {
+                        fileOutput.write(bytesArray, 0, bytesRead);
 
                     }
                     boolean success = ftpClient.completePendingCommand();
-                    FileInputStream inFile = openFileInput (fileName);
+                    FileInputStream inFile = openFileInput(fileName);
                     bytesRead = -1;
                     //bytesArray = (ByteStreams.toByteArray(inFile));
                     final Bitmap bitmap = BitmapFactory.decodeStream(inFile);
                     bitmapVector.add(bitmap);
 
 
-
                 }
 
-            }catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             return bitmapVector.toArray(new Bitmap[bitmapVector.size()]);
         }
 
-        protected void onPostExecute(Bitmap[] result){
+        protected void onPostExecute(Bitmap[] result) {
             Display display = getWindowManager().getDefaultDisplay();
             Point size = new Point();
             display.getSize(size);
             int width = size.x;
             int height = size.y;
-            for (Bitmap bitmap : result){
+            for (Bitmap bitmap : result) {
                 ImageView imageView = new ImageView(getApplicationContext());
-                imageView.setLayoutParams(new ViewGroup.LayoutParams(width/4, width/4));
+                ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(width / 4, width / 4);
+                imageView.setLayoutParams(params);
                 imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
                 imageView.setImageBitmap(bitmap);
                 imageView.getDrawingCache();
                 imageView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    ImageView imageView1 = (ImageView) view;
-                    Drawable drawable = imageView1.getDrawable();
-                    BitmapDrawable bitmapDrawable = ((BitmapDrawable) drawable);
-                    Bitmap bitmap = bitmapDrawable .getBitmap();
-                    diplayImage.setImageBitmap(bitmap);
+                    @Override
+                    public void onClick(View view) {
+                        ImageView imageView1 = (ImageView) view;
+                        Drawable drawable = imageView1.getDrawable();
+                        BitmapDrawable bitmapDrawable = ((BitmapDrawable) drawable);
+                        Bitmap bitmap = bitmapDrawable.getBitmap();
+                        diplayImage.setImageBitmap(bitmap);
 
-                }
-            });
-
-            myGallery.addView(imageView);
+                    }
+                });
+                ImageView temp =  new ImageView(getApplicationContext());
+                temp.setLayoutParams(new ViewGroup.LayoutParams(10,width / 4));
+                myGallery.addView(imageView);
+                myGallery.addView(temp);
             }
         }
     }
@@ -138,14 +142,9 @@ public class GalleryActivity extends Activity {
         diplayImage = (ImageView) findViewById(R.id.displayImage);
         myGallery = (LinearLayout) findViewById(R.id.mygallery);
         textView = (TextView) findViewById(R.id.show_files);
+        res = getResources();
         FTPBackgroundTask backgroundTask = new FTPBackgroundTask();
         backgroundTask.execute();
-
-
-
-
-
-
 
 
     }
@@ -154,9 +153,9 @@ public class GalleryActivity extends Activity {
      * Set up the {@link android.app.ActionBar}.
      */
     private void setupActionBar() {
-        
+
         getActionBar().setDisplayHomeAsUpEnabled(true);
-        
+
     }
 
     @Override
@@ -165,7 +164,7 @@ public class GalleryActivity extends Activity {
         getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
-    
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -178,7 +177,11 @@ public class GalleryActivity extends Activity {
                 //
                 // http://developer.android.com/design/patterns/navigation.html#up-vs-back
                 //
-                NavUtils.navigateUpFromSameTask(this);
+
+                Intent resultIntent = new Intent();
+                resultIntent.putExtra(res.getString(R.string.extras_latitude), "poszlo");
+                setResult(Activity.RESULT_OK, resultIntent);
+                finish();
                 return true;
         }
         return super.onOptionsItemSelected(item);

@@ -26,7 +26,9 @@
         android:theme="@android:style/Theme.Holo.Light" >
         <activity
             android:name="pl.pamieciprzyszlosc.app.MainActivity"
-            android:label="@string/app_name" >
+            android:label="@string/app_name"
+            android:launchMode="singleTop" >
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

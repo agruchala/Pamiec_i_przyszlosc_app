@@ -11,5 +11,8 @@
     <string name="disconnect">Disconnect Service</string>
     <string name="connect">Connect Service</string>
     <string name="title_activity_gallery">Galeria</string>
+    <string name="extras_latitude">latitude</string>
+    <string name="extras_longitude">longitude</string>
+
 
 </resources>
