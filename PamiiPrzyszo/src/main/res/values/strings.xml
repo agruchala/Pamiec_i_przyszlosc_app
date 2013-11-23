@@ -13,6 +13,13 @@
     <string name="title_activity_gallery">Galeria</string>
     <string name="extras_latitude">latitude</string>
     <string name="extras_longitude">longitude</string>
+    <string name="coordinates_file">coordinates.txt</string>
+    <string name="ftp_login">admin+ftpforproject.strefa.pl</string>
+    <string name="ftp_password">studia12</string>
+    <string name="download_in_progress">Download in progress ...</string>
+    <string name="connecting">Connecting ...</string>
+    <string name="downloading">Downloading files...</string>
+    <string name="finish">Finishing...</string>
 
 
 </resources>

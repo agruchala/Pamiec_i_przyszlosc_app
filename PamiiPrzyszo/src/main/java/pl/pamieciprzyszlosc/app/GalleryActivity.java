@@ -1,5 +1,6 @@
 package pl.pamieciprzyszlosc.app;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Point;
@@ -8,6 +9,7 @@ import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
+import android.os.Debug;
 import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -36,8 +38,11 @@ import java.io.InputStream;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.Vector;
 
+import com.google.android.gms.maps.model.LatLng;
 import com.google.common.io.ByteStreams;
 
 
@@ -45,92 +50,16 @@ import org.apache.commons.net.ftp.*;
 
 public class GalleryActivity extends Activity {
 
+    HashMap<String, LatLng> coordinates = new HashMap<String, LatLng>();
+    HashMap<String, Bitmap> bitmaps = new HashMap<String, Bitmap>();
+    HashMap<Integer, LatLng> locationsData = new HashMap<Integer, LatLng>();
+    int selectedID = -1;
     private FTPClient ftpClient;
     private String fileNames = "";
     private ImageView diplayImage;
     private LinearLayout myGallery;
     private TextView textView;
-    Resources res;
-
-
-    // class that connect to ftp in background
-    private class FTPBackgroundTask extends AsyncTask<Void, Void, Bitmap[]> {
-
-
-        @Override
-        protected Bitmap[] doInBackground(Void... voids) {
-            ArrayList<Bitmap> bitmapVector = new ArrayList<Bitmap>();
-            //android.os.Debug.waitForDebugger();
-            try {
-
-
-                ftpClient = new FTPClient();
-                ftpClient.connect("ftp.strefa.pl");
-
-                ftpClient.login("admin+ftpforproject.strefa.pl", "studia12");
-
-                ftpClient.enterLocalPassiveMode();
-                FTPFile[] fileList = ftpClient.listFiles();
-
-                for (FTPFile file : fileList) {
-                    String fileName = file.getName();
-                    if (!fileName.endsWith("jpg"))
-                        continue;
-                    FileOutputStream fileOutput = openFileOutput(fileName, MODE_PRIVATE);
-                    InputStream inputStream = ftpClient.retrieveFileStream(fileName);
-                    byte[] bytesArray = new byte[4096];
-                    int bytesRead = -1;
-                    while ((bytesRead = inputStream.read(bytesArray)) != -1) {
-                        fileOutput.write(bytesArray, 0, bytesRead);
-
-                    }
-                    boolean success = ftpClient.completePendingCommand();
-                    FileInputStream inFile = openFileInput(fileName);
-                    bytesRead = -1;
-                    //bytesArray = (ByteStreams.toByteArray(inFile));
-                    final Bitmap bitmap = BitmapFactory.decodeStream(inFile);
-                    bitmapVector.add(bitmap);
-
-
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return bitmapVector.toArray(new Bitmap[bitmapVector.size()]);
-        }
-
-        protected void onPostExecute(Bitmap[] result) {
-            Display display = getWindowManager().getDefaultDisplay();
-            Point size = new Point();
-            display.getSize(size);
-            int width = size.x;
-            int height = size.y;
-            for (Bitmap bitmap : result) {
-                ImageView imageView = new ImageView(getApplicationContext());
-                ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(width / 4, width / 4);
-                imageView.setLayoutParams(params);
-                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-                imageView.setImageBitmap(bitmap);
-                imageView.getDrawingCache();
-                imageView.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        ImageView imageView1 = (ImageView) view;
-                        Drawable drawable = imageView1.getDrawable();
-                        BitmapDrawable bitmapDrawable = ((BitmapDrawable) drawable);
-                        Bitmap bitmap = bitmapDrawable.getBitmap();
-                        diplayImage.setImageBitmap(bitmap);
-
-                    }
-                });
-                ImageView temp =  new ImageView(getApplicationContext());
-                temp.setLayoutParams(new ViewGroup.LayoutParams(10,width / 4));
-                myGallery.addView(imageView);
-                myGallery.addView(temp);
-            }
-        }
-    }
+    private Resources res;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -144,6 +73,21 @@ public class GalleryActivity extends Activity {
         textView = (TextView) findViewById(R.id.show_files);
         res = getResources();
         FTPBackgroundTask backgroundTask = new FTPBackgroundTask();
+        diplayImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (selectedID != -1) {
+                    Intent resultIntent = new Intent();
+                    LatLng coordinate = locationsData.get(selectedID);
+                    resultIntent.putExtra(res.getString(R.string.extras_latitude), coordinate.latitude);
+                    resultIntent.putExtra(res.getString(R.string.extras_longitude), coordinate.longitude);
+                    setResult(Activity.RESULT_OK, resultIntent);
+                    finish();
+                }
+
+            }
+        });
+
         backgroundTask.execute();
 
 
@@ -165,7 +109,6 @@ public class GalleryActivity extends Activity {
         return true;
     }
 
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -179,12 +122,164 @@ public class GalleryActivity extends Activity {
                 //
 
                 Intent resultIntent = new Intent();
-                resultIntent.putExtra(res.getString(R.string.extras_latitude), "poszlo");
-                setResult(Activity.RESULT_OK, resultIntent);
+
+                setResult(Activity.RESULT_CANCELED, resultIntent);
                 finish();
                 return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    // class that connect to ftp in background
+    private class FTPBackgroundTask extends AsyncTask<Void, Integer, Void> {
+        ProgressDialog barProgressDialog = new ProgressDialog(GalleryActivity.this);
+        int numberOfFiles=1;
+        int downloadedFiles=0;
+        int max=100;
+        @Override
+        protected void onPreExecute() {
+
+            barProgressDialog.setTitle(getString(R.string.download_in_progress));
+            barProgressDialog.setMessage(getString(R.string.connecting));
+            barProgressDialog.setProgressStyle(barProgressDialog.STYLE_HORIZONTAL);
+            barProgressDialog.setProgress(0);
+            barProgressDialog.setMax(max);
+            barProgressDialog.setCanceledOnTouchOutside(false);
+            barProgressDialog.setCancelable(false);
+            barProgressDialog.show();
+            super.onPreExecute();
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+
+            if(values[0].intValue()!=1){
+                barProgressDialog.setMessage(getString(R.string.downloading));
+            }
+            else{
+                downloadedFiles++;
+                barProgressDialog.setProgress((max/numberOfFiles)*downloadedFiles);
+
+
+            }
+            super.onProgressUpdate(values);
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+
+
+
+           // android.os.Debug.waitForDebugger();
+            try {
+                //creating ftp client
+
+                ftpClient = new FTPClient();
+                ftpClient.connect("ftp.strefa.pl");
+
+                ftpClient.login(getString(R.string.ftp_login), getString(R.string.ftp_password));
+
+                ftpClient.enterLocalPassiveMode();
+                FTPFile[] fileList = ftpClient.listFiles();
+                numberOfFiles = fileList.length;
+                publishProgress(0);
+                //iterating file by file on server
+                for (FTPFile file : fileList) {
+                    String fileName = file.getName();
+
+                    if (fileName.endsWith("jpg") || fileName.endsWith("txt")) {
+                        //if file is jpg or txt file we read its data
+                        FileOutputStream fileOutput = openFileOutput(fileName, MODE_PRIVATE);
+                        InputStream inputStream = ftpClient.retrieveFileStream(fileName);
+                        byte[] bytesArray = new byte[4096];
+                        int bytesRead = -1;
+                        while ((bytesRead = inputStream.read(bytesArray)) != -1) {
+                            fileOutput.write(bytesArray, 0, bytesRead);
+
+                        }
+                        boolean success = ftpClient.completePendingCommand();
+                        publishProgress(1);
+                        FileInputStream inFile = openFileInput(fileName);
+                        //if it is file wiht coordinates we are saving it to Hashmap of coordinates
+                        if (fileName.equals(getString(R.string.coordinates_file))) {
+                            byte readedBytes[] = (ByteStreams.toByteArray(inFile));
+                            String readedFile = new String(readedBytes);
+                            String[] coord = readedFile.split("\n");
+                            for (String data : coord) {
+                                String row[] = data.split(" ");
+                                coordinates.put(row[0], new LatLng(Double.parseDouble(row[1]), Double.parseDouble(row[2])));
+                            }
+                            continue;
+
+                        }
+
+                        Bitmap bitmap = BitmapFactory.decodeStream(inFile);
+                        bitmaps.put(fileName, bitmap);
+                    }
+
+                }
+                ftpClient.disconnect();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            //android.os.Debug.waitForDebugger();
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            barProgressDialog.setMessage(getString(R.string.finish));
+            super.onPostExecute(result);
+           // Debug.waitForDebugger();
+            Display display = getWindowManager().getDefaultDisplay();
+            Point size = new Point();
+            int width;
+
+            if (android.os.Build.VERSION.SDK_INT > 12) {
+                display.getSize(size);
+                width = size.x;
+            } else {
+                width = display.getWidth();
+            }
+
+            Set<String> bitmapNames = coordinates.keySet();
+            int ID = 0;
+            for (String bitmapName : bitmapNames) {
+                LatLng coordinate = coordinates.get(bitmapName);
+                Bitmap bitmap = bitmaps.get(bitmapName);
+                ImageView imageView = new ImageView(getApplicationContext());
+                ViewGroup.MarginLayoutParams params = new ViewGroup.MarginLayoutParams(width / 4, width / 4);
+                imageView.setLayoutParams(params);
+                imageView.setId(ID);
+                imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                imageView.setImageBitmap(bitmap);
+                imageView.getDrawingCache();
+                imageView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        ImageView imageView1 = (ImageView) view;
+                        Drawable drawable = imageView1.getDrawable();
+                        BitmapDrawable bitmapDrawable = ((BitmapDrawable) drawable);
+                        Bitmap bitmap = bitmapDrawable.getBitmap();
+                        selectedID = imageView1.getId();
+                        diplayImage.setImageBitmap(bitmap);
+
+                    }
+                });
+                locationsData.put(ID, coordinate);
+                ImageView temp =  new ImageView(getApplicationContext());
+                temp.setLayoutParams(new ViewGroup.LayoutParams(10, width / 4));
+                myGallery.addView(imageView);
+                myGallery.addView(temp);
+                ID++;
+
+
+            }
+            bitmaps.clear();
+            coordinates.clear();
+            barProgressDialog.dismiss();
+
+        }
     }
 
 }

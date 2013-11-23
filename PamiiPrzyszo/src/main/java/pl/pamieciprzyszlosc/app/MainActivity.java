@@ -97,8 +97,12 @@ public class MainActivity extends FragmentActivity implements
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == res.getInteger(R.integer.gallery_request_code)) {
-            if (resultCode == Activity.RESULT_OK)
-                Toast.makeText(getApplicationContext(), data.getStringExtra(res.getString(R.string.extras_latitude)), Toast.LENGTH_SHORT).show();
+            if (resultCode == Activity.RESULT_OK){
+                //TODO proximity alert
+                double latitude = data.getDoubleExtra(res.getString(R.string.extras_latitude),0.0);
+                double longitude = data.getDoubleExtra(res.getString(R.string.extras_longitude),0.0);
+                addressLabel.setText("Pobrano dane:"+ String.valueOf(latitude)+" "+String.valueOf(longitude));
+            }
         }
 
     }
