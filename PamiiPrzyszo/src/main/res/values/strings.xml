@@ -20,6 +20,12 @@
     <string name="connecting">Connecting ...</string>
     <string name="downloading">Downloading files...</string>
     <string name="finish">Finishing...</string>
+    <string name="proximity_alert_intent">pl.pamieciprzyszlosc.app.ProximityAlert</string>
+    <string name="left_to_finish"> left to finish!</string>
+    <string name="your_direction">Direction to place: </string>
+    <string name="win">You win!</string>
+    <string name="provider_enabled">Provider enabled</string>
+    <string name="provider_disabled">Provider disabled</string>
 
 
 </resources>

@@ -55,10 +55,8 @@ public class GalleryActivity extends Activity {
     HashMap<Integer, LatLng> locationsData = new HashMap<Integer, LatLng>();
     int selectedID = -1;
     private FTPClient ftpClient;
-    private String fileNames = "";
     private ImageView diplayImage;
     private LinearLayout myGallery;
-    private TextView textView;
     private Resources res;
 
     @Override
@@ -70,7 +68,6 @@ public class GalleryActivity extends Activity {
         //debugText =  (TextView) findViewById(R.id.debug_text);
         diplayImage = (ImageView) findViewById(R.id.displayImage);
         myGallery = (LinearLayout) findViewById(R.id.mygallery);
-        textView = (TextView) findViewById(R.id.show_files);
         res = getResources();
         FTPBackgroundTask backgroundTask = new FTPBackgroundTask();
         diplayImage.setOnClickListener(new View.OnClickListener() {

@@ -1,10 +1,15 @@
 package pl.pamieciprzyszlosc.app;
 
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
+import android.view.Gravity;
 import android.view.Menu;
 import android.app.ActionBar;
 import android.view.MenuItem;
@@ -23,6 +28,7 @@ import android.location.LocationManager;
 import android.location.LocationListener;
 import android.content.Context;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
@@ -46,11 +52,14 @@ public class MainActivity extends FragmentActivity implements
 
     private GoogleMap mMap;
     private LocationClient mLocationClient;
-    private TextView addressLabel;
+    private LatLng seekingLocation=null;
+    private boolean gameBegins=true;
+    private float previousDistance = 0;
+    private PendingIntent proximityIntent;
+    private boolean playing = false;
+
     private TextView locationLabel;
-    private Button getLocationBtn;
-    private Button disconnectBtn;
-    private Button connectBtn;
+
     private LocationManager mLocationManager;
     private LocationListener mMyLocationListener;
     Resources res;
@@ -60,36 +69,34 @@ public class MainActivity extends FragmentActivity implements
         super.onCreate(savedInstanceState);
         this.setContentView(R.layout.activity_main);
         locationLabel = (TextView) findViewById(R.id.locationLabel);
-        addressLabel = (TextView) findViewById(R.id.addressLabel);
-        getLocationBtn = (Button) findViewById(R.id.getLocation);
 
-        getLocationBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                displayCurrentLocation();
-            }
-        });
-        disconnectBtn = (Button) findViewById(R.id.disconnect);
-        disconnectBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                mLocationClient.disconnect();
-                locationLabel.setText("Got disconnected....");
-            }
-        });
-        connectBtn = (Button) findViewById(R.id.connect);
-        connectBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                mLocationClient.connect();
-                locationLabel.setText("Got connected....");
-            }
-        });
+
         // Create the LocationRequest object
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mMyLocationListener = new MyLocationListener();
-        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER, 500, (float) 150, mMyLocationListener);
+        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER, 150, (float) 25, mMyLocationListener);
         res = getResources();
 
         mLocationClient = new LocationClient(this, this, this);
         setUpMapIfNeeded();
+    }
+
+    private void addProximityAlert(double latitude, double longitude) {
+
+        Intent intent = new Intent(getString(R.string.proximity_alert_intent));
+        proximityIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
+
+        mLocationManager.addProximityAlert(
+                latitude, // the latitude of the central point of the alert region
+                longitude, // the longitude of the central point of the alert region
+                6, // the radius of the central point of the alert region, in meters
+                -1, // time for this proximity alert, in milliseconds, or -1 to indicate no expiration
+                proximityIntent // will be used to generate an Intent to fire when entry to or exit from the alert region is detected
+        );
+
+        IntentFilter filter = new IntentFilter(getString(R.string.proximity_alert_intent));
+        registerReceiver(new ProximityIntentReceiver(), filter);
+
     }
 
 
@@ -98,10 +105,12 @@ public class MainActivity extends FragmentActivity implements
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == res.getInteger(R.integer.gallery_request_code)) {
             if (resultCode == Activity.RESULT_OK){
-                //TODO proximity alert
                 double latitude = data.getDoubleExtra(res.getString(R.string.extras_latitude),0.0);
                 double longitude = data.getDoubleExtra(res.getString(R.string.extras_longitude),0.0);
-                addressLabel.setText("Pobrano dane:"+ String.valueOf(latitude)+" "+String.valueOf(longitude));
+                gameBegins=true;
+                playing = true;
+                seekingLocation = new LatLng(latitude,longitude);
+                addProximityAlert(latitude,longitude);
             }
         }
 
@@ -146,9 +155,6 @@ public class MainActivity extends FragmentActivity implements
 
 
         switch (item.getItemId()) {
-            case R.id.action_map:
-                text = "Mapa!";
-                break;
             case R.id.action_gallery:
                 Intent intent = new Intent(MainActivity.this, GalleryActivity.class);
                 this.startActivityForResult(intent, res.getInteger(R.integer.gallery_request_code));
@@ -169,7 +175,6 @@ public class MainActivity extends FragmentActivity implements
         super.onStart();
         // Connect the client.
         mLocationClient.connect();
-        locationLabel.setText("Got connected....");
     }
 
     @Override
@@ -177,20 +182,16 @@ public class MainActivity extends FragmentActivity implements
         // Disconnect the client.
         mLocationClient.disconnect();
         super.onStop();
-        locationLabel.setText("Got disconnected....");
     }
 
     @Override
     public void onConnected(Bundle dataBundle) {
         // Display the connection status
-        Toast.makeText(this, "Connected", Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onDisconnected() {
         // Display the connection status
-        Toast.makeText(this, "Disconnected. Please re-connect.",
-                Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -201,20 +202,7 @@ public class MainActivity extends FragmentActivity implements
                 Toast.LENGTH_SHORT).show();
     }
 
-    public void displayCurrentLocation() {
-        // Get the current location's latitude & longitude
-        Location currentLocation = mLocationClient.getLastLocation();
-        setUpMap();
-        String msg = "Current Location: " +
-                Double.toString(currentLocation.getLatitude()) + "," +
-                Double.toString(currentLocation.getLongitude());
 
-        // Display the current location in the UI
-        locationLabel.setText(msg);
-
-        // To display the current address in the UI
-        (new GetAddressTask(this.getApplicationContext())).execute(currentLocation);
-    }
 
     /*
      * Following is a subclass of AsyncTask which has been used to get
@@ -222,6 +210,7 @@ public class MainActivity extends FragmentActivity implements
      */
     private class GetAddressTask extends AsyncTask<Location, Void, String> {
         Context mContext;
+        Location loc;
 
         public GetAddressTask(Context context) {
             super();
@@ -233,8 +222,12 @@ public class MainActivity extends FragmentActivity implements
          */
         @Override
         protected void onPostExecute(String address) {
-            // Display the current address in the UI
-            addressLabel.setText(address);
+            // Display the current address map
+            LatLng newLatLng = new LatLng(loc.getLatitude(), loc.getLongitude());
+            MarkerOptions options =new MarkerOptions().position(newLatLng).title(address);
+            mMap.addMarker(options);
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newLatLng, 12.0f));
+
         }
 
         @Override
@@ -242,7 +235,7 @@ public class MainActivity extends FragmentActivity implements
             Geocoder geocoder =
                     new Geocoder(mContext, Locale.getDefault());
             // Get the current location from the input parameter list
-            Location loc = params[0];
+            loc = params[0];
             // Create a list to contain the result address
             List<Address> addresses = null;
             try {
@@ -289,16 +282,63 @@ public class MainActivity extends FragmentActivity implements
         }
     }// AsyncTask class
 
+    private String getBearing(Location location){
+        /*
+        double R = 6371;
+        double dLat = Math.toRadians(seekingLocation.latitude-location.getLatitude());
+        double dLon = Math.toRadians(seekingLocation.longitude-location.getLongitude());
+        double lat1 = Math.toRadians(location.getLatitude());
+        double lat2 = Math.toRadians(seekingLocation.latitude);
+        double y = Math.sin(dLon)*Math.cos(lat2);
+        double x = Math.cos(lat1)*Math.sin(lat2) -
+                Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+        double brng = Math.toDegrees(Math.atan2(y, x));
+
+        brng = (brng+360)%360;
+        //*/
+        Location loc = new Location("Test");
+        loc.setLatitude(seekingLocation.latitude);
+        loc.setLongitude(seekingLocation.longitude);
+        float brng = location.bearingTo(loc);
+        if(brng>45 &&brng<=135)
+            return "E";
+        else if(brng>135 && brng<=225)
+            return "S";
+        else if(brng>225 && brng<=315)
+            return "W";
+        else
+            return "N";
+    }
 
     public class MyLocationListener implements LocationListener {
 
         @Override
         public void onLocationChanged(Location location) {
+            if(playing){
+                GetAddressTask task = new GetAddressTask(getApplicationContext());
+                task.execute(location);
+                String toView;
+                float[] results = new float[3];
+                Location.distanceBetween(location.getLatitude(),location.getLongitude(),seekingLocation.latitude,seekingLocation.longitude,results);
+                float distance = results[0];
 
-            String toastText = "Current location updated!\n"
-                    + "Latitude: " + location.getLatitude() + "\n"
-                    + "Longitude: " + location.getLongitude();
-            Toast.makeText(getApplicationContext(), toastText, Toast.LENGTH_SHORT).show();
+                toView = distance+ getString(R.string.left_to_finish);
+
+                if(gameBegins){
+                    gameBegins=false;
+                    previousDistance = distance;
+                }else{
+                    if(previousDistance>distance){
+                        locationLabel.setBackgroundColor(Color.GREEN);
+                    }
+                    else
+                        locationLabel.setBackgroundColor(Color.RED);
+                }
+                String currentDirection = getBearing(location);
+                toView+="\n" + getString(R.string.your_direction)+currentDirection;
+                locationLabel.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
+                locationLabel.setText(toView);
+            }
 
         }
 
@@ -309,14 +349,34 @@ public class MainActivity extends FragmentActivity implements
 
         @Override
         public void onProviderEnabled(String s) {
-            Toast.makeText(getApplicationContext(), "Provider enabled", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), getString(R.string.provider_enabled), Toast.LENGTH_SHORT).show();
         }
 
         @Override
         public void onProviderDisabled(String s) {
-            Toast.makeText(getApplicationContext(), "Provider disabled", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), getString(R.string.provider_disabled), Toast.LENGTH_SHORT).show();
         }
-    }
+    }//location listener class
 
+
+    private class ProximityIntentReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String key = LocationManager.KEY_PROXIMITY_ENTERING;
+
+            Boolean entering = intent.getBooleanExtra(key, false);
+
+            if (entering){
+                locationLabel.setBackgroundColor(Color.GREEN);
+                locationLabel.setText(getString(R.string.win));
+                playing = false;
+                mLocationManager.removeProximityAlert(proximityIntent);
+                unregisterReceiver(this);
+
+
+            }
+        }
+    }//Broadcast receiver class
 
 }

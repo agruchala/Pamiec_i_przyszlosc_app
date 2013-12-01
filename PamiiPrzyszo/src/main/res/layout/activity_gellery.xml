@@ -19,10 +19,5 @@
             android:orientation="horizontal"
             />
     </HorizontalScrollView>
-    <TextView
-        android:id="@+id/show_files"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        />
 
 </LinearLayout>
