@@ -57,6 +57,8 @@ public class MainActivity extends FragmentActivity implements
     private float previousDistance = 0;
     private PendingIntent proximityIntent;
     private boolean playing = false;
+    double latitude;
+    double longitude;
 
     private TextView locationLabel;
 
@@ -74,12 +76,16 @@ public class MainActivity extends FragmentActivity implements
         // Create the LocationRequest object
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mMyLocationListener = new MyLocationListener();
-        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER, 150, (float) 25, mMyLocationListener);
+        setUpRequests();
         res = getResources();
 
         mLocationClient = new LocationClient(this, this, this);
         setUpMapIfNeeded();
     }
+    private void setUpRequests(){
+        mLocationManager.requestLocationUpdates(mLocationManager.GPS_PROVIDER, 150, (float) 25, mMyLocationListener);
+    }
+
 
     private void addProximityAlert(double latitude, double longitude) {
 
@@ -105,8 +111,8 @@ public class MainActivity extends FragmentActivity implements
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == res.getInteger(R.integer.gallery_request_code)) {
             if (resultCode == Activity.RESULT_OK){
-                double latitude = data.getDoubleExtra(res.getString(R.string.extras_latitude),0.0);
-                double longitude = data.getDoubleExtra(res.getString(R.string.extras_longitude),0.0);
+                latitude = data.getDoubleExtra(res.getString(R.string.extras_latitude),0.0);
+                longitude = data.getDoubleExtra(res.getString(R.string.extras_longitude),0.0);
                 gameBegins=true;
                 playing = true;
                 seekingLocation = new LatLng(latitude,longitude);
@@ -174,12 +180,22 @@ public class MainActivity extends FragmentActivity implements
     protected void onStart() {
         super.onStart();
         // Connect the client.
+        setUpRequests();
         mLocationClient.connect();
+        if(playing){
+            addProximityAlert(latitude,longitude);
+        }
+
+
     }
 
     @Override
     protected void onStop() {
         // Disconnect the client.
+        if(playing){
+            mLocationManager.removeProximityAlert(proximityIntent);
+        }
+        mLocationManager.removeUpdates(mMyLocationListener);
         mLocationClient.disconnect();
         super.onStop();
     }
@@ -226,7 +242,7 @@ public class MainActivity extends FragmentActivity implements
             LatLng newLatLng = new LatLng(loc.getLatitude(), loc.getLongitude());
             MarkerOptions options =new MarkerOptions().position(newLatLng).title(address);
             mMap.addMarker(options);
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newLatLng, 12.0f));
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newLatLng, 16.0f));
 
         }
 

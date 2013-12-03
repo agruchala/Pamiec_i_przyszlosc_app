@@ -14,6 +14,7 @@
     <TextView
         android:id="@+id/locationLabel"
         android:layout_width="fill_parent"
+        android:textAlignment="gravity"
         android:layout_height="100dp"/>
     <fragment class="com.google.android.gms.maps.SupportMapFragment"
         android:layout_height="match_parent"
