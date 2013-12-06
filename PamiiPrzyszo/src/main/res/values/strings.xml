@@ -26,6 +26,16 @@
     <string name="win">You win!</string>
     <string name="provider_enabled">Provider enabled</string>
     <string name="provider_disabled">Provider disabled</string>
+    <string name="connection_fail">Connection Failure : </string>
+    <string name="io_exception">IO Exception trying to get address</string>
+    <string name="illegal_arguments">Illegal arguments </string>
+    <string name="passed"> passed to address service</string>
+    <string name="address_format"  formatted="false" >%s, %s, %s</string>
+    <string name="no_address">No address found</string>
+    <string name="set_up_ftp">Set up a ftp server:</string>
+    <string name="save_btn">Save</string>
+    <string name="ftp_address">ftp.strefa.pl</string>
+    <string name="ftp">FTP</string>
 
 
 </resources>

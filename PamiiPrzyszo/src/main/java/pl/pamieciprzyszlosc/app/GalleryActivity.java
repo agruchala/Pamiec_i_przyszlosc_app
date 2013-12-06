@@ -1,7 +1,9 @@
 package pl.pamieciprzyszlosc.app;
 
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Point;
 import android.graphics.drawable.BitmapDrawable;
@@ -58,6 +60,7 @@ public class GalleryActivity extends Activity {
     private ImageView diplayImage;
     private LinearLayout myGallery;
     private Resources res;
+    private String ftpAddress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,6 +87,11 @@ public class GalleryActivity extends Activity {
 
             }
         });
+        SharedPreferences settings;
+        settings = getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+
+        ftpAddress = settings.getString("ftp_address",getString(R.string.ftp_address));
+
 
         backgroundTask.execute();
 
@@ -102,7 +110,7 @@ public class GalleryActivity extends Activity {
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
+        //getMenuInflater().inflate(R.menu.main, menu);
         return true;
     }
 
@@ -172,7 +180,7 @@ public class GalleryActivity extends Activity {
                 //creating ftp client
 
                 ftpClient = new FTPClient();
-                ftpClient.connect("ftp.strefa.pl");
+                ftpClient.connect(ftpAddress);
 
                 ftpClient.login(getString(R.string.ftp_login), getString(R.string.ftp_password));
 

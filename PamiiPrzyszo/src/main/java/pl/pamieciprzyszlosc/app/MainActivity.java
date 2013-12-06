@@ -1,20 +1,27 @@
 package pl.pamieciprzyszlosc.app;
 
+import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.app.Activity;
 import android.support.v4.app.FragmentActivity;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.app.ActionBar;
 import android.view.MenuItem;
+import android.widget.EditText;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 import android.content.Context;
+import android.view.ViewGroup.LayoutParams;
 
 import java.io.IOException;
 import java.util.List;
@@ -59,6 +66,7 @@ public class MainActivity extends FragmentActivity implements
     private boolean playing = false;
     double latitude;
     double longitude;
+    private String ftpAddress;
 
     private TextView locationLabel;
 
@@ -73,13 +81,19 @@ public class MainActivity extends FragmentActivity implements
         locationLabel = (TextView) findViewById(R.id.locationLabel);
 
 
-        // Create the LocationRequest object
         mLocationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         mMyLocationListener = new MyLocationListener();
         setUpRequests();
         res = getResources();
 
         mLocationClient = new LocationClient(this, this, this);
+        SharedPreferences settings;
+        settings = getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+
+        ftpAddress = settings.getString("ftp_address",getString(R.string.ftp_address));
+        SharedPreferences.Editor editor = settings.edit();
+        editor.putString("ftp_address",ftpAddress);
+        editor.commit();
         setUpMapIfNeeded();
     }
     private void setUpRequests(){
@@ -93,11 +107,11 @@ public class MainActivity extends FragmentActivity implements
         proximityIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
 
         mLocationManager.addProximityAlert(
-                latitude, // the latitude of the central point of the alert region
-                longitude, // the longitude of the central point of the alert region
-                6, // the radius of the central point of the alert region, in meters
-                -1, // time for this proximity alert, in milliseconds, or -1 to indicate no expiration
-                proximityIntent // will be used to generate an Intent to fire when entry to or exit from the alert region is detected
+                latitude,
+                longitude,
+                6,
+                -1,
+                proximityIntent
         );
 
         IntentFilter filter = new IntentFilter(getString(R.string.proximity_alert_intent));
@@ -123,12 +137,12 @@ public class MainActivity extends FragmentActivity implements
     }
 
     private void setUpMapIfNeeded() {
-        // Do a null check to confirm that we have not already instantiated the map.
+
         if (mMap == null) {
-            // Try to obtain the map from the SupportMapFragment.
+
             mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                     .getMap();
-            // Check if we were successful in obtaining the map.
+
             if (mMap != null) {
                 setUpMap();
             }
@@ -168,11 +182,44 @@ public class MainActivity extends FragmentActivity implements
             case R.id.action_about:
                 text = "Info!";
                 break;
+            case R.id.action_settings:
+
+                AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+                alert.setTitle(getString(R.string.ftp));
+                alert.setMessage(getString(R.string.set_up_ftp));
+
+                final EditText input = new EditText(this);
+                input.setText(ftpAddress);
+                alert.setView(input);
+
+                alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        String value = input.getText().toString();
+                        ftpAddress = value;
+                        SharedPreferences settings;
+                        settings = getSharedPreferences("PREFS", Context.MODE_PRIVATE);
+                        SharedPreferences.Editor editor = settings.edit();
+                        editor.putString("ftp_address",ftpAddress);
+                        editor.commit();
+                    }
+                });
+
+                alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        // Canceled.
+                    }
+                });
+
+                alert.show();
+
+
+                break;
         }
 
 
-        Toast toast = Toast.makeText(context, text, duration);
-        toast.show();
+        //Toast toast = Toast.makeText(context, text, duration);
+        //toast.show();
         return super.onOptionsItemSelected(item);
     }
 
@@ -213,17 +260,13 @@ public class MainActivity extends FragmentActivity implements
     @Override
     public void onConnectionFailed(ConnectionResult connectionResult) {
         // Display the error code on failure
-        Toast.makeText(this, "Connection Failure : " +
+        Toast.makeText(this, getString(R.string.connection_fail) +
                 connectionResult.getErrorCode(),
                 Toast.LENGTH_SHORT).show();
     }
 
 
 
-    /*
-     * Following is a subclass of AsyncTask which has been used to get
-     * address corresponding to the given latitude & longitude.
-     */
     private class GetAddressTask extends AsyncTask<Location, Void, String> {
         Context mContext;
         Location loc;
@@ -233,9 +276,6 @@ public class MainActivity extends FragmentActivity implements
             mContext = context;
         }
 
-        /*
-         * When the task finishes, onPostExecute() displays the address.
-         */
         @Override
         protected void onPostExecute(String address) {
             // Display the current address map
@@ -250,50 +290,35 @@ public class MainActivity extends FragmentActivity implements
         protected String doInBackground(Location... params) {
             Geocoder geocoder =
                     new Geocoder(mContext, Locale.getDefault());
-            // Get the current location from the input parameter list
             loc = params[0];
-            // Create a list to contain the result address
-            List<Address> addresses = null;
+
+            List<Address> addressesList = null;
             try {
-                addresses = geocoder.getFromLocation(loc.getLatitude(),
+                addressesList = geocoder.getFromLocation(loc.getLatitude(),
                         loc.getLongitude(), 1);
             } catch (IOException e1) {
-                Log.e("LocationSampleActivity",
-                        "IO Exception in getFromLocation()");
-                Log.e("LocationSampleActivity", e1.toString());
-                return ("IO Exception trying to get address");
+                return (getString(R.string.io_exception));
             } catch (IllegalArgumentException e2) {
-                // Error message to post in the log
-                String errorString = "Illegal arguments " +
+                String errorString = getString(R.string.illegal_arguments) +
                         Double.toString(loc.getLatitude()) +
                         " , " +
                         Double.toString(loc.getLongitude()) +
-                        " passed to address service";
-                Log.e("LocationSampleActivity", errorString);
+                        getString(R.string.passed);
                 e2.printStackTrace();
                 return errorString;
             }
-            // If the reverse geocode returned an address
-            if (addresses != null && addresses.size() > 0) {
+            if (addressesList != null && addressesList.size() > 0) {
                 // Get the first address
-                Address address = addresses.get(0);
-            /*
-            * Format the first line of address (if available),
-            * city, and country name.
-            */
+                Address address = addressesList.get(0);
                 String addressText = String.format(
-                        "%s, %s, %s",
-                        // If there's a street address, add it
+                        getString(R.string.address_format),
                         address.getMaxAddressLineIndex() > 0 ?
                                 address.getAddressLine(0) : "",
-                        // Locality is usually a city
                         address.getLocality(),
-                        // The country of the address
                         address.getCountryName());
-                // Return the text
                 return addressText;
             } else {
-                return "No address found";
+                return getString(R.string.no_address);
             }
         }
     }// AsyncTask class
