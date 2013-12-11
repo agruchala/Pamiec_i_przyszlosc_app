@@ -267,19 +267,18 @@ public class MainActivity extends FragmentActivity implements
 
 
 
-    private class GetAddressTask extends AsyncTask<Location, Void, String> {
-        Context mContext;
-        Location loc;
+    private class AddressLookup extends AsyncTask<Location, Void, String> {
+        Context appContext;
+        Location place;
 
-        public GetAddressTask(Context context) {
+        public AddressLookup(Context context) {
             super();
-            mContext = context;
+            appContext = context;
         }
 
         @Override
         protected void onPostExecute(String address) {
-            // Display the current address map
-            LatLng newLatLng = new LatLng(loc.getLatitude(), loc.getLongitude());
+            LatLng newLatLng = new LatLng(place.getLatitude(), place.getLongitude());
             MarkerOptions options =new MarkerOptions().position(newLatLng).title(address);
             mMap.addMarker(options);
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(newLatLng, 16.0f));
@@ -288,35 +287,34 @@ public class MainActivity extends FragmentActivity implements
 
         @Override
         protected String doInBackground(Location... params) {
+            place = params[0];
             Geocoder geocoder =
-                    new Geocoder(mContext, Locale.getDefault());
-            loc = params[0];
+                    new Geocoder(appContext, Locale.getDefault());
+
 
             List<Address> addressesList = null;
             try {
-                addressesList = geocoder.getFromLocation(loc.getLatitude(),
-                        loc.getLongitude(), 1);
+                addressesList = geocoder.getFromLocation(place.getLatitude(),
+                        place.getLongitude(), 1);
             } catch (IOException e1) {
                 return (getString(R.string.io_exception));
             } catch (IllegalArgumentException e2) {
-                String errorString = getString(R.string.illegal_arguments) +
-                        Double.toString(loc.getLatitude()) +
+                String exceptionError = getString(R.string.illegal_arguments) +
+                        Double.toString(place.getLatitude()) +
                         " , " +
-                        Double.toString(loc.getLongitude()) +
+                        Double.toString(place.getLongitude()) +
                         getString(R.string.passed);
-                e2.printStackTrace();
-                return errorString;
+                return exceptionError;
             }
             if (addressesList != null && addressesList.size() > 0) {
-                // Get the first address
                 Address address = addressesList.get(0);
-                String addressText = String.format(
+                String geocodedLocation = String.format(
                         getString(R.string.address_format),
                         address.getMaxAddressLineIndex() > 0 ?
                                 address.getAddressLine(0) : "",
                         address.getLocality(),
                         address.getCountryName());
-                return addressText;
+                return geocodedLocation;
             } else {
                 return getString(R.string.no_address);
             }
@@ -356,7 +354,7 @@ public class MainActivity extends FragmentActivity implements
         @Override
         public void onLocationChanged(Location location) {
             if(playing){
-                GetAddressTask task = new GetAddressTask(getApplicationContext());
+                AddressLookup task = new AddressLookup(getApplicationContext());
                 task.execute(location);
                 String toView;
                 float[] results = new float[3];
